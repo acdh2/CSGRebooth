@@ -11,7 +11,7 @@ public class CSGTest : CSGModel
     {
         // Stel je hebt een array van MeshFilters voor de 'snijders'
         // Resultaat begint als Mesh A
-        List<CSGPolygon> currentPolys = MeshToPolygons(meshFilterA.sharedMesh, meshFilterA.transform);
+        List<CSGPolygon> currentPolys = MeshToPolygons(meshFilterA.sharedMesh, meshFilterA.transform, false);
 
         foreach(var filterB in extraFilters) 
         {

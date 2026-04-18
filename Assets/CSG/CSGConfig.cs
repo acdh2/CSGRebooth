@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 public static class CSGConfig
 {
-    public const float Epsilon = 0.001f; // Voor vlak-controles
-    public const float SnapGrid = 0.0001f;  // Voor vertex-snapping
+    public const float Epsilon = 0.005f; // Voor vlak-controles
+    public const float SnapGrid = 0.0005f;  // Voor vertex-snapping
 
     public static Vector3 Snap(Vector3 pos)
     {

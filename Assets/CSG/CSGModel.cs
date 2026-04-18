@@ -4,14 +4,111 @@ using System.Collections.Generic;
 public abstract class CSGModel : MonoBehaviour
 {
     // Maakt CSGPolygonen van een Unity Mesh
-    protected List<CSGPolygon> MeshToPolygons(Mesh mesh, Transform tx)
+    protected Vector2[] GeneratePlanarUVs(Vector3[] vertices)
     {
+        Vector2[] uvs = new Vector2[vertices.Length];
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            // Simpele XY-projectie (Planar Mapping)
+            uvs[i] = new Vector2(vertices[i].x, vertices[i].z);
+        }
+        return uvs;
+    }
+
+    protected Mesh WeldMesh(Mesh mesh)
+    {
+        Mesh weldedMesh = Instantiate(mesh);
+        Vector3[] vertices = weldedMesh.vertices;
+        int[] triangles = weldedMesh.triangles;
+
+        Dictionary<Vector3, int> vertexCache = new Dictionary<Vector3, int>();
+        List<int> newTriangles = new List<int>();
+        List<Vector3> newVertices = new List<Vector3>();
+        
+        // We gebruiken hier alleen positie om te welden. 
+        // Als je ook op UV wilt welden, moet de key complexer.
+        for (int i = 0; i < triangles.Length; i++)
+        {
+            Vector3 v = vertices[triangles[i]];
+            if (!vertexCache.TryGetValue(v, out int index))
+            {
+                index = newVertices.Count;
+                newVertices.Add(v);
+                vertexCache.Add(v, index);
+            }
+            newTriangles.Add(index);
+        }
+
+        weldedMesh.Clear();
+        weldedMesh.vertices = newVertices.ToArray();
+        weldedMesh.triangles = newTriangles.ToArray();
+        weldedMesh.RecalculateNormals(); // Essentieel na welding
+        weldedMesh.RecalculateBounds();
+        
+        return weldedMesh;
+    }
+
+    protected List<CSGPolygon> MeshToPolygons(Mesh mesh, Transform tx, bool weld = false)
+    {
+        // Indien weld gewenst is, maken we eerst een tijdelijke welded versie
+        Mesh processingMesh = weld ? WeldMesh(mesh) : mesh;
+
+        Vector3[] v = processingMesh.vertices;
+        int[] t = processingMesh.triangles;
+        Vector3[] n = processingMesh.normals;
+        Vector2[] u = processingMesh.uv;
+
+        // Safety checks op de (eventueel nieuwe) mesh data
+        if (n == null || n.Length == 0)
+        {
+            processingMesh.RecalculateNormals();
+            n = processingMesh.normals;
+        }
+
+        if (u == null || u.Length == 0)
+        {
+            u = GeneratePlanarUVs(v);
+        }
+
         List<CSGPolygon> polygons = new List<CSGPolygon>();
+        for (int i = 0; i < t.Length; i += 3)
+        {
+            List<CSGVertex> verts = new List<CSGVertex>
+            {
+                new CSGVertex(tx.TransformPoint(v[t[i]]), tx.TransformDirection(n[t[i]]), u[t[i]]),
+                new CSGVertex(tx.TransformPoint(v[t[i+1]]), tx.TransformDirection(n[t[i+1]]), u[t[i+1]]),
+                new CSGVertex(tx.TransformPoint(v[t[i+2]]), tx.TransformDirection(n[t[i+2]]), u[t[i+2]])
+            };
+            polygons.Add(new CSGPolygon(verts));
+        }
+
+        // Ruim de tijdelijke mesh op als we die hebben aangemaakt
+        if (weld) Destroy(processingMesh);
+
+        return polygons;
+    }    
+
+    protected List<CSGPolygon> MeshToPolygonsOld(Mesh mesh, Transform tx)
+    {
         Vector3[] v = mesh.vertices;
-        Vector3[] n = mesh.normals;
-        Vector2[] u = mesh.uv;
         int[] t = mesh.triangles;
 
+        // Normals checken en berekenen indien nodig
+        Vector3[] n = mesh.normals;
+        if (n == null || n.Length == 0)
+        {
+            mesh.RecalculateNormals();
+            n = mesh.normals;
+        }
+
+        // UVs checken en genereren indien nodig
+        Vector2[] u = mesh.uv;
+        if (u == null || u.Length == 0)
+        {
+            u = GeneratePlanarUVs(v);
+        }
+
+        List<CSGPolygon> polygons = new List<CSGPolygon>();
         for (int i = 0; i < t.Length; i += 3)
         {
             List<CSGVertex> verts = new List<CSGVertex>
@@ -23,7 +120,27 @@ public abstract class CSGModel : MonoBehaviour
             polygons.Add(new CSGPolygon(verts));
         }
         return polygons;
-    }
+    }    
+    // protected List<CSGPolygon> MeshToPolygons(Mesh mesh, Transform tx)
+    // {
+    //     List<CSGPolygon> polygons = new List<CSGPolygon>();
+    //     Vector3[] v = mesh.vertices;
+    //     Vector3[] n = mesh.normals;
+    //     Vector2[] u = mesh.uv;
+    //     int[] t = mesh.triangles;
+
+    //     for (int i = 0; i < t.Length; i += 3)
+    //     {
+    //         List<CSGVertex> verts = new List<CSGVertex>
+    //         {
+    //             new CSGVertex(tx.TransformPoint(v[t[i]]), tx.TransformDirection(n[t[i]]), u[t[i]]),
+    //             new CSGVertex(tx.TransformPoint(v[t[i+1]]), tx.TransformDirection(n[t[i+1]]), u[t[i+1]]),
+    //             new CSGVertex(tx.TransformPoint(v[t[i+2]]), tx.TransformDirection(n[t[i+2]]), u[t[i+2]])
+    //         };
+    //         polygons.Add(new CSGPolygon(verts));
+    //     }
+    //     return polygons;
+    // }
 
     // Zet CSGPolygonen terug naar een Unity Mesh
     protected Mesh PolygonsToMesh2(List<CSGPolygon> polygons)
