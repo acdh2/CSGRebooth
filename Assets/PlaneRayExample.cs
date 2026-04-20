@@ -10,6 +10,7 @@ public class BoxCreator : MonoBehaviour
 
     private GameObject currentBox;
     private Vector3 startPoint;
+    private Vector3 endPoint;
     private Plane dragPlane;
 
     void Update()
@@ -28,6 +29,92 @@ public class BoxCreator : MonoBehaviour
         }
     }
 
+void UpdateBoxTransform(Vector3 pA, Vector3 pB)
+{
+    if (currentBox == null) return;
+
+    // 1. Center en Scale berekenen
+    Vector3 center = (pA + pB) / 2f;
+    currentBox.transform.position = center;
+
+    float sizeX = Mathf.Max(Mathf.Abs(pA.x - pB.x), 0.01f);
+    float sizeY = Mathf.Max(Mathf.Abs(pA.y - pB.y), 0.01f);
+    float sizeZ = Mathf.Max(Mathf.Abs(pA.z - pB.z), 0.01f);
+
+    Vector3 newScale = new Vector3(sizeX, sizeY, sizeZ);
+    currentBox.transform.localScale = newScale;
+
+    // 2. Planar UV mapping toepassen
+    ApplyWorldPlanarUVs(currentBox);
+}
+
+void ApplyWorldPlanarUVs(GameObject obj)
+{
+    MeshFilter mf = obj.GetComponent<MeshFilter>();
+    if (mf == null) return;
+
+    Mesh mesh = mf.mesh; 
+    Vector2[] uvs = mesh.uv;
+    Vector3[] normals = mesh.normals;
+    Vector3[] vertices = mesh.vertices;
+
+    for (int i = 0; i < uvs.Length; i++)
+    {
+        // 1. Bereken de wereldpositie van deze specifieke vertex
+        Vector3 worldPos = obj.transform.TransformPoint(vertices[i]);
+        
+        // 2. Bereken de wereld-richting van de normal
+        Vector3 worldNormal = obj.transform.TransformDirection(normals[i]);
+
+        float absX = Mathf.Abs(worldNormal.x);
+        float absY = Mathf.Abs(worldNormal.y);
+        float absZ = Mathf.Abs(worldNormal.z);
+
+        // 3. Projecteer de wereldpositie op het dominante vlak
+        if (absX >= absY && absX >= absZ) // Vlak wijst hoofdzakelijk naar links/rechts (X)
+        {
+            // We gebruiken Z en Y van de wereldpositie
+            uvs[i] = new Vector2(worldPos.z, worldPos.y);
+        }
+        else if (absY >= absX && absY >= absZ) // Vlak wijst hoofdzakelijk omhoog/omlaag (Y)
+        {
+            // We gebruiken X en Z van de wereldpositie
+            uvs[i] = new Vector2(worldPos.x, worldPos.z);
+        }
+        else // Vlak wijst hoofdzakelijk naar voren/achteren (Z)
+        {
+            // We gebruiken X en Y van de wereldpositie
+            uvs[i] = new Vector2(worldPos.x, worldPos.y);
+        }
+    }
+
+    mesh.uv = uvs;
+}
+
+    void UpdateBoxTransform2(Vector3 pA, Vector3 pB)
+    {
+        if (currentBox == null) return;
+
+        // 1. Bereken het midden (Center)
+        Vector3 center = (pA + pB) / 2f;
+        currentBox.transform.position = center;
+
+        // 2. Bereken de grootte (Size)
+        // We gebruiken Abs om negatieve schaal (en dus rendering fouten) te voorkomen
+        float sizeX = Mathf.Abs(pA.x - pB.x);
+        float sizeY = Mathf.Abs(pA.y - pB.y);
+        float sizeZ = Mathf.Abs(pA.z - pB.z);
+
+        // 3. Pas de schaal toe
+        // Let op: als een waarde 0 is (bijv. bij de start), 
+        // geef het een kleine waarde om Unity-waarschuwingen te voorkomen.
+        currentBox.transform.localScale = new Vector3(
+            Mathf.Max(sizeX, 0.01f), 
+            Mathf.Max(sizeY, 0.01f), 
+            Mathf.Max(sizeZ, 0.01f)
+        );
+    }    
+
     Ray GetMouseRay() {
         return Camera.main.ScreenPointToRay(Input.mousePosition);
     }
@@ -45,7 +132,7 @@ public class BoxCreator : MonoBehaviour
 
                 currentBox = Instantiate(boxPrefab, startPoint, Quaternion.identity);
                 currentBox.transform.localScale = Vector3.zero;
-                currentBox.transform.up = normal; // Box uitlijnen met oppervlak
+                //currentBox.transform.up = normal; // Box uitlijnen met oppervlak
 
                 currentState = State.DrawingBase;
             }
@@ -58,28 +145,43 @@ public class BoxCreator : MonoBehaviour
         if (dragPlane.Raycast(ray, out float enter))
         {
             Vector3 currentPoint = ray.GetPoint(enter);
-            
-            // Positie is het midden tussen start en muis
-            currentBox.transform.position = (startPoint + currentPoint) / 2f;
-
-            // Bereken schaal op basis van lokale assen
-            Vector3 localDiff = currentPoint - startPoint;
-            currentBox.transform.localScale = new Vector3(localDiff.x * 1, 0.1f, localDiff.z * 1);
+            endPoint = currentPoint;
+            UpdateBoxTransform(startPoint, currentPoint);            
         }
 
         if (Input.GetMouseButtonUp(0))
-        {
-            // Zet de dragPlane "overeind" voor de hoogte fase.
-            // We gebruiken de forward van de camera, maar projecteren die op de basis van de box
-            // zodat het vlak perfect verticaal staat ten opzichte van de box.
-            Vector3 planeNormal = Vector3.Cross(currentBox.transform.right, currentBox.transform.up);
-            dragPlane = new Plane(planeNormal, currentBox.transform.position);
-            
+        {            
             currentState = State.DrawingHeight;
+
         }
     }
 
-    void HandleDrawingHeight()
+void HandleDrawingHeight()
+{
+    Ray ray = GetMouseRay();
+
+    // 1. Maak een vlak dat verticaal staat (up) en naar de camera kijkt
+    Vector3 planeNormal = Camera.main.transform.forward;
+
+    // Het vlak gaat door het startPoint (of het midden van je base)
+    Plane heightPlane = new Plane(-planeNormal, endPoint);
+    
+    if (heightPlane.Raycast(ray, out float enter))
+    {
+        Vector3 hitPoint = ray.GetPoint(enter);
+        float height = Vector3.Dot(dragPlane.normal, hitPoint - endPoint);
+        UpdateBoxTransform(startPoint, endPoint + dragPlane.normal * height);
+    }
+
+    if (Input.GetMouseButtonDown(0))
+    {
+        currentBox.layer = 6;
+        currentState = State.Hover;
+        currentBox = null;
+    }
+}    
+
+    void HandleDrawingHeight2()
     {
         Ray ray = GetMouseRay();
         
