@@ -4,7 +4,7 @@ using UnityEngine;
 public class CSGNode
 {
     public List<CSGPolygon> polygons = new List<CSGPolygon>();
-    public Plane partition;
+    public Planed partition;
     public CSGNode front;
     public CSGNode back;
 
@@ -72,10 +72,51 @@ public class CSGNode
         back = temp;
     }
 
-    // De filter-functie: splitst polygonen tegen deze boom
-    public List<CSGPolygon> ClipPolygons(List<CSGPolygon> list)
+public List<CSGPolygon> ClipPolygons(List<CSGPolygon> list)
+{
+    //if (this.partition == null) return new List<CSGPolygon>(list);
+
+    List<CSGPolygon> f = new List<CSGPolygon>();
+    List<CSGPolygon> b = new List<CSGPolygon>();
+
+    foreach (var poly in list)
     {
-        if (partition.normal == Vector3.zero) return new List<CSGPolygon>(list);
+        // Gebruik je bestaande Split-methode om te verdelen
+        // We gebruiken hier tijdelijke lijsten voor de coplanar resultaten
+        List<CSGPolygon> fCop = new List<CSGPolygon>();
+        List<CSGPolygon> bCop = new List<CSGPolygon>();
+        
+        poly.Split(this.partition, f, b, fCop, bCop);
+
+        // CRUCIAL: Routeer coplanar polygonen naar Front of Back
+        // In een Subtract operatie wil je dat 'gelijke' vlakken 
+        // als buiten (Front) worden gezien om gaten te voorkomen.
+        f.AddRange(fCop);
+        b.AddRange(bCop);
+    }
+
+    if (this.front != null) f = this.front.ClipPolygons(f);
+    
+    if (this.back != null) b = this.back.ClipPolygons(b);
+    else {
+        List<CSGPolygon> keepList = new List<CSGPolygon>();
+        foreach (var poly in b) {
+            if (poly.GetArea() < 0.0001)
+            {
+                keepList.Add(poly);
+            }
+        }
+        b.Clear(); // Hier verdwijnt je grote driehoek als hij in 'b' belandt!
+    }
+
+    f.AddRange(b);
+    return f;
+}    
+
+    // De filter-functie: splitst polygonen tegen deze boom
+    public List<CSGPolygon> ClipPolygons2(List<CSGPolygon> list)
+    {
+        if (partition.normal == Vector3d.zero) return new List<CSGPolygon>(list);
 
         List<CSGPolygon> fList = new List<CSGPolygon>();
         List<CSGPolygon> bList = new List<CSGPolygon>();

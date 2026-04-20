@@ -1,17 +1,24 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
 public enum VertexSide { On, Front, Back }
 
 public class CSGPolygon
 {
     public List<CSGVertex> vertices;
-    public Plane plane; // Unity's ingebouwde Plane is ook prima bruikbaar
+    public Planed plane; // Unity's ingebouwde Plane is ook prima bruikbaar
 
-    public CSGPolygon(List<CSGVertex> vels)
+    public CSGPolygon(List<CSGVertex> vels) 
     {
         vertices = vels;
-        plane = new Plane(vertices[0].position, vertices[1].position, vertices[2].position);
+        plane = new Planed(vertices[0].position, vertices[1].position, vertices[2].position);
+    }
+
+    public CSGPolygon(List<CSGVertex> vels, Vector3d normal)
+    {
+        vertices = vels;
+        plane = new Planed(normal, vertices[0].position);//, vertices[1].position, vertices[2].position);
     }
 
     public void Flip()
@@ -27,13 +34,13 @@ public class CSGPolygon
         plane.normal = -plane.normal;
     }
 
-    public void Split(Plane splitPlane, List<CSGPolygon> fList, List<CSGPolygon> bList, List<CSGPolygon> fCoplanar, List<CSGPolygon> bCoplanar)
+    public void Split(Planed splitPlane, List<CSGPolygon> fList, List<CSGPolygon> bList, List<CSGPolygon> fCoplanar, List<CSGPolygon> bCoplanar)
     {
         // 1. Classificeer elke vertex ten opzichte van het vlak
         List<VertexSide> sides = new List<VertexSide>();
         for (int i = 0; i < vertices.Count; i++)
         {
-            float dist = splitPlane.GetDistanceToPoint(vertices[i].position);
+            double dist = splitPlane.GetDistanceToPoint(vertices[i].position);
             if (dist < -CSGConfig.Epsilon) sides.Add(VertexSide.Front);
             else if (dist > CSGConfig.Epsilon) sides.Add(VertexSide.Back);
             else sides.Add(VertexSide.On);
@@ -51,7 +58,7 @@ public class CSGPolygon
         // Geval A: Polygoon ligt volledig op het vlak (Coplanar)
         if (!hasFront && !hasBack)
         {
-            float dot = Vector3.Dot(this.plane.normal, splitPlane.normal);
+            double dot = Vector3d.Dot(this.plane.normal, splitPlane.normal);
             if (dot > 0) fCoplanar.Add(this);
             else bCoplanar.Add(this);
             return;
@@ -90,17 +97,17 @@ public class CSGPolygon
             // Check of we de edge (i -> j) moeten snijden
             if ((si == VertexSide.Front && sj == VertexSide.Back) || (si == VertexSide.Back && sj == VertexSide.Front))
             {
-                float distI = splitPlane.GetDistanceToPoint(vi.position);
-                float distJ = splitPlane.GetDistanceToPoint(vj.position);
+                double distI = splitPlane.GetDistanceToPoint(vi.position);
+                double distJ = splitPlane.GetDistanceToPoint(vj.position);
                 
                 // Bereken t (0.0 tot 1.0) op de edge
-                float t = Mathf.Abs(distI) / (Mathf.Abs(distI) + Mathf.Abs(distJ));
+                double t = Math.Abs(distI) / (Math.Abs(distI) + Math.Abs(distJ));
                 
                 // Interpoleer positie, normal en UV
                 CSGVertex intersect = CSGVertex.Lerp(vi, vj, t);
                 
                 // Snappen om microscopische gaten te voorkomen
-                intersect.position = CSGConfig.Snap(intersect.position);
+                //intersect.position = CSGConfig.Snap(intersect.position);
 
                 fVerts.Add(intersect);
                 bVerts.Add(intersect);
@@ -108,8 +115,23 @@ public class CSGPolygon
         }
 
         // Voeg de nieuwe fragmenten toe als ze valide polygonen zijn
-        if (fVerts.Count >= 3) fList.Add(new CSGPolygon(fVerts));
-        if (bVerts.Count >= 3) bList.Add(new CSGPolygon(bVerts));
+        if (fVerts.Count >= 3) fList.Add(new CSGPolygon(fVerts, plane.normal));
+        if (bVerts.Count >= 3) bList.Add(new CSGPolygon(bVerts, plane.normal));
+    }
+
+    public double GetArea()
+    {
+        double area = 0;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            Vector3d v1 = vertices[i].position;
+            Vector3d v2 = vertices[(i + 1) % vertices.Count].position;
+            
+            // De kruisproduct methode voor oppervlakte
+            Vector3d cross = Vector3d.Cross(v1, v2);
+            area += Vector3d.Dot(this.plane.normal, cross);
+        }
+        return Math.Abs(area * 0.5);
     }
 
 }

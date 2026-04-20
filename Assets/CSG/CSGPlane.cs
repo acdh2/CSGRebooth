@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public struct CSGPlane
 {
     public Vector3 normal;
-    public float distance;
+    public double distance;
 
     public CSGPlane(Vector3 normal, Vector3 point)
     {
@@ -13,7 +13,7 @@ public struct CSGPlane
     }
 
     // Bepaalt aan welke kant van de plane een punt ligt
-    public float DistanceTo(Vector3 point)
+    public double DistanceTo(Vector3 point)
     {
         return Vector3.Dot(normal, point) - distance;
     }

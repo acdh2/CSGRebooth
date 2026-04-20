@@ -27,7 +27,7 @@ public class CSGTest : CSGModel
             currentPolys.AddRange(clippedB);
         }
 
-        GetComponent<MeshFilter>().mesh = PolygonsToMesh(currentPolys);
+        GetComponent<MeshFilter>().mesh = PolygonsToMesh(currentPolys, true);
     }
 
     [ContextMenu("Union Multiple")]

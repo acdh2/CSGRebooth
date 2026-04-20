@@ -85,17 +85,17 @@ public class BoxCreator : MonoBehaviour
         
         // We berekenen hoe ver de ray verwijderd is van het vlak
         // Dit geeft ons de verticale afstand (hoogte) ongeacht de camerahoek
-        float height = dragPlane.GetDistanceToPoint(ray.origin + ray.direction * (Vector3.Dot(startPoint - ray.origin, dragPlane.normal) / 
+        double height = dragPlane.GetDistanceToPoint(ray.origin + ray.direction * (Vector3.Dot(startPoint - ray.origin, dragPlane.normal) / 
                         Vector3.Dot(ray.direction, dragPlane.normal)));
 
         // Alternatieve simpele methode: afstand van ray tot het vlak
-        // We gebruiken een tijdelijke float om de enter distance te krijgen
+        // We gebruiken een tijdelijke double om de enter distance te krijgen
         if (dragPlane.Raycast(ray, out float enter))
         {
             // We willen niet het punt OP het vlak, maar de afstand van de ray origin tot het vlak.
             // Een robuuste manier is de afstand tussen het basispunt en het dichtstbijzijnde punt op de ray.
             Vector3 pointOnPlane = ray.GetPoint(enter);
-            float dist = Vector3.Distance(ray.origin, pointOnPlane); // Dit is niet ideaal bij hoeken.
+            double dist = Vector3.Distance(ray.origin, pointOnPlane); // Dit is niet ideaal bij hoeken.
         }
 
         // De meest betrouwbare manier voor 'scherm-naar-hoogte':
