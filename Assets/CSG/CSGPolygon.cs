@@ -41,8 +41,8 @@ public class CSGPolygon
         for (int i = 0; i < vertices.Count; i++)
         {
             double dist = splitPlane.GetDistanceToPoint(vertices[i].position);
-            if (dist < -CSGConfig.Epsilon) sides.Add(VertexSide.Front);
-            else if (dist > CSGConfig.Epsilon) sides.Add(VertexSide.Back);
+            if (dist > CSGConfig.Epsilon) sides.Add(VertexSide.Front);
+            else if (dist < -CSGConfig.Epsilon) sides.Add(VertexSide.Back);
             else sides.Add(VertexSide.On);
         }
 

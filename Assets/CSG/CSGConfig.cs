@@ -103,6 +103,14 @@ public struct Vector3d
 
 }
 
+public enum CSGSide 
+{ 
+    Front, 
+    Back, 
+    On, 
+    Spanning 
+}
+
 [System.Serializable]
 public struct Planed
 {
@@ -146,4 +154,23 @@ public struct Planed
         // De afstand is (Normal · Point) + Distance
         return (normal.x * point.x + normal.y * point.y + normal.z * point.z) + distance;
     }  
+
+    public CSGSide Compare(CSGPolygon poly)
+    {
+        int front = 0;
+        int back = 0;
+
+        foreach (var v in poly.vertices)
+        {
+            double d = Vector3d.Dot(this.normal, v.position) - this.distance;
+            
+            if (d < -CSGConfig.Epsilon) front++;
+            else if (d > -CSGConfig.Epsilon) back++;
+        }
+
+        if (front > 0 && back > 0) return CSGSide.Spanning;
+        if (front > 0) return CSGSide.Front;
+        if (back > 0) return CSGSide.Back;
+        return CSGSide.On;
+    }
 }    

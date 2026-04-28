@@ -15,7 +15,7 @@ public abstract class CSGModel : MonoBehaviour
         return uvs;
     }
 
-    protected Mesh WeldMesh(Mesh mesh)
+    protected Mesh WeldMeshOld(Mesh mesh)
     {
         Mesh weldedMesh = Instantiate(mesh);
         Vector3[] vertices = weldedMesh.vertices;
@@ -51,7 +51,7 @@ public abstract class CSGModel : MonoBehaviour
     protected List<CSGPolygon> MeshToPolygons(Mesh mesh, Transform tx, bool weld = false)
     {
         // Indien weld gewenst is, maken we eerst een tijdelijke welded versie
-        Mesh processingMesh = weld ? WeldMesh(mesh) : mesh;
+        Mesh processingMesh = mesh; //weld ? WeldMesh(mesh) : mesh;
 
         Vector3[] v = processingMesh.vertices;
         int[] t = processingMesh.triangles;
@@ -83,7 +83,7 @@ public abstract class CSGModel : MonoBehaviour
         }
 
         // Ruim de tijdelijke mesh op als we die hebben aangemaakt
-        if (weld) Destroy(processingMesh);
+//        if (weld) Destroy(processingMesh);
 
         return polygons;
     }    
@@ -91,13 +91,14 @@ public abstract class CSGModel : MonoBehaviour
     protected Mesh PolygonsToMesh(List<CSGPolygon> polygons, bool weld = true)
     {
         Mesh mesh = new Mesh();
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         List<Vector3> outVerts = new List<Vector3>();
         List<Vector3> outNorms = new List<Vector3>();
         List<Vector2> outUvs = new List<Vector2>();
         List<int> outTris = new List<int>();
 
         // Dictionary voor welding (alleen gebruikt als weld == true)
-        Dictionary<string, int> vertexCache = new Dictionary<string, int>();
+        //Dictionary<string, int> vertexCache = new Dictionary<string, int>();
 
         foreach (var poly in polygons)
         {
@@ -112,20 +113,20 @@ public abstract class CSGModel : MonoBehaviour
                 int index = 0;
                 bool found = false;
 
-                if (weld)
-                {
-                    // De sleutel bepaalt wat we 'hetzelfde' vinden. 
-                    // Positie, Normaal en UV moeten matchen voor een naadloze weld.
-                    string key = string.Format("{0:F4}_{1:F4}_{2:F4}_{3:F4}_{4:F4}_{5:F4}_{6:F4}_{7:F4}", 
-                        localPos.x, localPos.y, localPos.z, 
-                        localNorm.x, localNorm.y, localNorm.z, 
-                        v.uv.x, v.uv.y);
+                // if (weld)
+                // {
+                //     // De sleutel bepaalt wat we 'hetzelfde' vinden. 
+                //     // Positie, Normaal en UV moeten matchen voor een naadloze weld.
+                //     string key = string.Format("{0:F4}_{1:F4}_{2:F4}_{3:F4}_{4:F4}_{5:F4}_{6:F4}_{7:F4}", 
+                //         localPos.x, localPos.y, localPos.z, 
+                //         localNorm.x, localNorm.y, localNorm.z, 
+                //         v.uv.x, v.uv.y);
 
-                    if (vertexCache.TryGetValue(key, out index))
-                    {
-                        found = true;
-                    }
-                }
+                //     if (vertexCache.TryGetValue(key, out index))
+                //     {
+                //         found = true;
+                //     }
+                // }
 
                 if (!found)
                 {
@@ -133,10 +134,10 @@ public abstract class CSGModel : MonoBehaviour
                     outVerts.Add(localPos);
                     outNorms.Add(localNorm);
                     outUvs.Add(v.uv.toVector3());
-                    if (weld) vertexCache.Add(string.Format("{0:F4}_{1:F4}_{2:F4}_{3:F4}_{4:F4}_{5:F4}_{6:F4}_{7:F4}", 
-                        localPos.x, localPos.y, localPos.z, 
-                        localNorm.x, localNorm.y, localNorm.z, 
-                        v.uv.x, v.uv.y), index);
+                    // if (weld) vertexCache.Add(string.Format("{0:F4}_{1:F4}_{2:F4}_{3:F4}_{4:F4}_{5:F4}_{6:F4}_{7:F4}", 
+                    //     localPos.x, localPos.y, localPos.z, 
+                    //     localNorm.x, localNorm.y, localNorm.z, 
+                    //     v.uv.x, v.uv.y), index);
                 }
                 
                 polyIndices.Add(index);

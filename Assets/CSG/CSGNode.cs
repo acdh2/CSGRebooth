@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
+
 
 public class CSGNode
 {
@@ -17,42 +19,70 @@ public class CSGNode
     }
 
     public void Build(List<CSGPolygon> list)
+{
+    if (list == null || list.Count == 0) return;
+
+    // 1. Zoek de beste splitter in plaats van altijd list[0]
+    CSGPolygon splitter = FindBestSplitter(list);
+    this.partition = splitter.plane;
+    
+    List<CSGPolygon> fList = new List<CSGPolygon>();
+    List<CSGPolygon> bList = new List<CSGPolygon>();
+
+    // 2. Verdeel de polygonen
+    foreach (var poly in list)
     {
-        if (list == null || list.Count == 0) return;
+        // De splitter zelf en andere coplanar polygonen gaan naar this.polygons
+        poly.Split(this.partition, fList, bList, this.polygons, this.polygons);
+    }
 
-        // 1. Kies een splitter. We pakken de eerste polygoon uit de lijst.
-        // De plane van deze polygoon wordt onze 'partitioner'.
-        CSGPolygon splitter = list[0];
-        this.partition = splitter.plane;
-        
-        // Voeg de splitter zelf toe aan de lijst van polygonen van deze node.
-        // Polygonen die exact op dit vlak liggen (coplanar) komen ook hier.
-        this.polygons.Add(splitter);
+    // 3. Bouw recursief verder
+    if (fList.Count > 0)
+    {
+        if (this.front == null) this.front = new CSGNode();
+        this.front.Build(fList);
+    }
 
-        List<CSGPolygon> fList = new List<CSGPolygon>();
-        List<CSGPolygon> bList = new List<CSGPolygon>();
+    if (bList.Count > 0)
+    {
+        if (this.back == null) this.back = new CSGNode();
+        this.back.Build(bList);
+    }
+}
 
-        // 2. Verdeel de rest van de polygonen over de voorkant, achterkant, of split ze.
-        for (int i = 1; i < list.Count; i++)
+    private CSGPolygon FindBestSplitter(List<CSGPolygon> list)
+    {
+        CSGPolygon best = list[0];
+        long bestScore = long.MaxValue;
+
+        // We testen een steekproef om de snelheid erin te houden
+        int sampleStep = Math.Max(1, list.Count / 15); 
+
+        for (int i = 0; i < list.Count; i += sampleStep)
         {
-            // We gebruiken de uitgebreide Split functie die we eerder hebben geschreven.
-            // fCoplanar en bCoplanar voegen we toe aan 'this.polygons'.
-            list[i].Split(this.partition, fList, bList, this.polygons, this.polygons);
-        }
+            CSGPolygon candidate = list[i];
+            int splits = 0;
+            int front = 0;
+            int back = 0;
 
-        // 3. Bouw recursief de voorkant van de boom
-        if (fList.Count > 0)
-        {
-            if (this.front == null) this.front = new CSGNode();
-            this.front.Build(fList);
-        }
+            foreach (var p in list)
+            {
+                var side = candidate.plane.Compare(p); // Gebruik je bestaande Side-check
+                if (side == CSGSide.Spanning) splits++;
+                else if (side == CSGSide.Front) front++;
+                else if (side == CSGSide.Back) back++;
+            }
 
-        // 4. Bouw recursief de achterkant van de boom
-        if (bList.Count > 0)
-        {
-            if (this.back == null) this.back = new CSGNode();
-            this.back.Build(bList);
+            // Score: We haten splits (wegens precisiefouten) en willen balans
+            long score = (splits * 10) + Math.Abs(front - back);
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
         }
+        return best;
     }
 
     // Draait de hele boom om (nodig voor Subtract)
@@ -72,42 +102,78 @@ public class CSGNode
         back = temp;
     }
 
+    public List<CSGPolygon> ClipPolygonsNew(List<CSGPolygon> list)
+    {
+        //if (this.partition == null) return new List<CSGPolygon>(list);
+
+        List<CSGPolygon> f = new List<CSGPolygon>();
+        List<CSGPolygon> b = new List<CSGPolygon>();
+
+        foreach (var poly in list)
+        {
+            // Gebruik je bestaande Split-methode om te verdelen
+            // We gebruiken hier tijdelijke lijsten voor de coplanar resultaten
+            List<CSGPolygon> fCop = new List<CSGPolygon>();
+            List<CSGPolygon> bCop = new List<CSGPolygon>();
+            
+            poly.Split(this.partition, f, b, fCop, bCop);
+
+            // CRUCIAL: Routeer coplanar polygonen naar Front of Back
+            // In een Subtract operatie wil je dat 'gelijke' vlakken 
+            // als buiten (Front) worden gezien om gaten te voorkomen.
+            f.AddRange(fCop);
+            b.AddRange(bCop);
+        }
+
+        if (this.front != null) f = this.front.ClipPolygons(f);
+        
+        if (this.back != null) b = this.back.ClipPolygons(b);
+        else {
+            // List<CSGPolygon> keepList = new List<CSGPolygon>();
+            // foreach (var poly in b) {
+            //     if (poly.GetArea() < 0.0001)
+            //     {
+            //         keepList.Add(poly);
+            //     }
+            // }
+            b.Clear(); // Hier verdwijnt je grote driehoek als hij in 'b' belandt!
+        }
+
+        f.AddRange(b);
+        return f;
+    }    
+
+    public void ClipTo(CSGNode other)
+    {
+        // De polygonen van deze node worden vervangen door 
+        // de versie die is 'geclipt' door de andere boom.
+        this.polygons = other.ClipPolygons(this.polygons);
+
+        if (this.front != null) this.front.ClipTo(other);
+        if (this.back != null) this.back.ClipTo(other);
+    }    
+
 public List<CSGPolygon> ClipPolygons(List<CSGPolygon> list)
 {
-    //if (this.partition == null) return new List<CSGPolygon>(list);
-
     List<CSGPolygon> f = new List<CSGPolygon>();
     List<CSGPolygon> b = new List<CSGPolygon>();
 
     foreach (var poly in list)
     {
-        // Gebruik je bestaande Split-methode om te verdelen
-        // We gebruiken hier tijdelijke lijsten voor de coplanar resultaten
+        // Gebruik aparte lijsten voor coplanar!
         List<CSGPolygon> fCop = new List<CSGPolygon>();
         List<CSGPolygon> bCop = new List<CSGPolygon>();
-        
         poly.Split(this.partition, f, b, fCop, bCop);
 
-        // CRUCIAL: Routeer coplanar polygonen naar Front of Back
-        // In een Subtract operatie wil je dat 'gelijke' vlakken 
-        // als buiten (Front) worden gezien om gaten te voorkomen.
+        // Bij een subtract/union moeten coplanar vlakken naar Front 
+        // om dubbele muren en gaten te voorkomen.
         f.AddRange(fCop);
-        b.AddRange(bCop);
+        f.AddRange(bCop); 
     }
 
     if (this.front != null) f = this.front.ClipPolygons(f);
-    
     if (this.back != null) b = this.back.ClipPolygons(b);
-    else {
-        List<CSGPolygon> keepList = new List<CSGPolygon>();
-        foreach (var poly in b) {
-            if (poly.GetArea() < 0.0001)
-            {
-                keepList.Add(poly);
-            }
-        }
-        b.Clear(); // Hier verdwijnt je grote driehoek als hij in 'b' belandt!
-    }
+    else b.Clear(); // Dit mag ALLEEN als je zeker weet dat 'null' Solid is.
 
     f.AddRange(b);
     return f;
