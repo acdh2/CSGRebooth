@@ -119,19 +119,4 @@ public class CSGPolygon
         if (bVerts.Count >= 3) bList.Add(new CSGPolygon(bVerts, plane.normal));
     }
 
-    public double GetArea()
-    {
-        double area = 0;
-        for (int i = 0; i < vertices.Count; i++)
-        {
-            Vector3d v1 = vertices[i].position;
-            Vector3d v2 = vertices[(i + 1) % vertices.Count].position;
-            
-            // De kruisproduct methode voor oppervlakte
-            Vector3d cross = Vector3d.Cross(v1, v2);
-            area += Vector3d.Dot(this.plane.normal, cross);
-        }
-        return Math.Abs(area * 0.5);
-    }
-
 }

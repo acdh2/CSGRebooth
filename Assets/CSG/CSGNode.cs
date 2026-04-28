@@ -102,106 +102,37 @@ public class CSGNode
         back = temp;
     }
 
-    public List<CSGPolygon> ClipPolygonsNew(List<CSGPolygon> list)
-    {
-        //if (this.partition == null) return new List<CSGPolygon>(list);
-
-        List<CSGPolygon> f = new List<CSGPolygon>();
-        List<CSGPolygon> b = new List<CSGPolygon>();
-
-        foreach (var poly in list)
-        {
-            // Gebruik je bestaande Split-methode om te verdelen
-            // We gebruiken hier tijdelijke lijsten voor de coplanar resultaten
-            List<CSGPolygon> fCop = new List<CSGPolygon>();
-            List<CSGPolygon> bCop = new List<CSGPolygon>();
-            
-            poly.Split(this.partition, f, b, fCop, bCop);
-
-            // CRUCIAL: Routeer coplanar polygonen naar Front of Back
-            // In een Subtract operatie wil je dat 'gelijke' vlakken 
-            // als buiten (Front) worden gezien om gaten te voorkomen.
-            f.AddRange(fCop);
-            b.AddRange(bCop);
-        }
-
-        if (this.front != null) f = this.front.ClipPolygons(f);
-        
-        if (this.back != null) b = this.back.ClipPolygons(b);
-        else {
-            // List<CSGPolygon> keepList = new List<CSGPolygon>();
-            // foreach (var poly in b) {
-            //     if (poly.GetArea() < 0.0001)
-            //     {
-            //         keepList.Add(poly);
-            //     }
-            // }
-            b.Clear(); // Hier verdwijnt je grote driehoek als hij in 'b' belandt!
-        }
-
-        f.AddRange(b);
-        return f;
-    }    
-
     public void ClipTo(CSGNode other)
     {
-        // De polygonen van deze node worden vervangen door 
-        // de versie die is 'geclipt' door de andere boom.
         this.polygons = other.ClipPolygons(this.polygons);
 
         if (this.front != null) this.front.ClipTo(other);
         if (this.back != null) this.back.ClipTo(other);
     }    
 
-public List<CSGPolygon> ClipPolygons(List<CSGPolygon> list)
-{
-    List<CSGPolygon> f = new List<CSGPolygon>();
-    List<CSGPolygon> b = new List<CSGPolygon>();
-
-    foreach (var poly in list)
+    public List<CSGPolygon> ClipPolygons(List<CSGPolygon> list)
     {
-        // Gebruik aparte lijsten voor coplanar!
-        List<CSGPolygon> fCop = new List<CSGPolygon>();
-        List<CSGPolygon> bCop = new List<CSGPolygon>();
-        poly.Split(this.partition, f, b, fCop, bCop);
-
-        // Bij een subtract/union moeten coplanar vlakken naar Front 
-        // om dubbele muren en gaten te voorkomen.
-        f.AddRange(fCop);
-        f.AddRange(bCop); 
-    }
-
-    if (this.front != null) f = this.front.ClipPolygons(f);
-    if (this.back != null) b = this.back.ClipPolygons(b);
-    else b.Clear(); // Dit mag ALLEEN als je zeker weet dat 'null' Solid is.
-
-    f.AddRange(b);
-    return f;
-}    
-
-    // De filter-functie: splitst polygonen tegen deze boom
-    public List<CSGPolygon> ClipPolygons2(List<CSGPolygon> list)
-    {
-        if (partition.normal == Vector3d.zero) return new List<CSGPolygon>(list);
-
-        List<CSGPolygon> fList = new List<CSGPolygon>();
-        List<CSGPolygon> bList = new List<CSGPolygon>();
+        List<CSGPolygon> f = new List<CSGPolygon>();
+        List<CSGPolygon> b = new List<CSGPolygon>();
 
         foreach (var poly in list)
         {
-            poly.Split(partition, fList, bList, fList, bList);
+            List<CSGPolygon> fCop = new List<CSGPolygon>();
+            List<CSGPolygon> bCop = new List<CSGPolygon>();
+            poly.Split(this.partition, f, b, fCop, bCop);
+
+            f.AddRange(fCop);
+            b.AddRange(bCop); 
         }
 
-        if (front != null) fList = front.ClipPolygons(fList);
-        
-        if (back != null) bList = back.ClipPolygons(bList);
-        else bList.Clear(); // Alles wat 'back' van een leaf valt is Inside
+        if (this.front != null) f = this.front.ClipPolygons(f);
+        if (this.back != null) b = this.back.ClipPolygons(b);
+        else b.Clear();
 
-        fList.AddRange(bList);
-        return fList;
-    }
+        f.AddRange(b);
+        return f;
+    }    
 
-    // Haalt alle polygonen uit de boom op als een platte lijst
     public List<CSGPolygon> AllPolygons()
     {
         List<CSGPolygon> list = new List<CSGPolygon>(polygons);
