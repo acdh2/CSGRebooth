@@ -4,15 +4,15 @@ using System.Collections.Generic;
 
 public static class CSGConfig
 {
-    public const double Epsilon = 0.00001f; // Voor vlak-controles
-    //public const double SnapGrid = 0.001f;  // Voor vertex-snapping
+    public const float Epsilon = 0.00001f; // Voor vlak-controles
+    //public const float SnapGrid = 0.001f;  // Voor vertex-snapping
 
     // public static Vector3d SnapZ(Vector3d pos)
     // {
     //     return new Vector3d(
-    //         Math.Round(pos.x / SnapGrid) * SnapGrid,
-    //         Math.Round(pos.y / SnapGrid) * SnapGrid,
-    //         Math.Round(pos.z / SnapGrid) * SnapGrid
+    //         Mathf.Round(pos.x / SnapGrid) * SnapGrid,
+    //         Mathf.Round(pos.y / SnapGrid) * SnapGrid,
+    //         Mathf.Round(pos.z / SnapGrid) * SnapGrid
     //     );
     // }
 }
@@ -20,12 +20,12 @@ public static class CSGConfig
 [System.Serializable]
 public struct Vector3d
 {
-    public double x;
-    public double y;
-    public double z;
+    public float x;
+    public float y;
+    public float z;
 
     // Constructor
-    public Vector3d(double x, double y, double z)
+    public Vector3d(float x, float y, float z)
     {
         this.x = x;
         this.y = y;
@@ -33,21 +33,21 @@ public struct Vector3d
     }
 
 
-    public double Magnitude => Math.Sqrt(x * x + y * y + z * z);
+    public float Magnitude => Mathf.Sqrt(x * x + y * y + z * z);
 
     public Vector3d normalized
     {
         get
         {
-            double mag = Magnitude;
+            float mag = Magnitude;
             return mag > 0 ? new Vector3d(x / mag, y / mag, z / mag) : new Vector3d(0, 0, 0);
         }
     }
 
-    public static Vector3d Lerp(Vector3d a, Vector3d b, double t)
+    public static Vector3d Lerp(Vector3d a, Vector3d b, float t)
     {
         // t tussen 0 en 1 houden
-        t = Math.Max(0, Math.Min(1, t));
+        t = Mathf.Max(0, Mathf.Min(1, t));
         
         return new Vector3d(
             a.x + (b.x - a.x) * t,
@@ -77,7 +77,7 @@ public struct Vector3d
     public override bool Equals(object obj) => obj is Vector3d other && this == other;
     public override int GetHashCode() => (x, y, z).GetHashCode();
 
-    public static double Dot(Vector3d lhs, Vector3d rhs)
+    public static float Dot(Vector3d lhs, Vector3d rhs)
     {
         return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
     }
@@ -115,10 +115,10 @@ public enum CSGSide
 public struct Planed
 {
     public Vector3d normal;
-    public double distance;
+    public float distance;
 
     // Constructor op basis van normaal en afstand
-    public Planed(Vector3d normal, double distance)
+    public Planed(Vector3d normal, float distance)
     {
         this.normal = normal.normalized;
         this.distance = distance;
@@ -139,9 +139,9 @@ public struct Planed
         Vector3d side2 = new Vector3d(c.x - a.x, c.y - a.y, c.z - a.z);
 
         // Kruisproduct voor de normaal: (side1.y * side2.z - side1.z * side2.y, ...)
-        double nx = side1.y * side2.z - side1.z * side2.y;
-        double ny = side1.z * side2.x - side1.x * side2.z;
-        double nz = side1.x * side2.y - side1.y * side2.x;
+        float nx = side1.y * side2.z - side1.z * side2.y;
+        float ny = side1.z * side2.x - side1.x * side2.z;
+        float nz = side1.x * side2.y - side1.y * side2.x;
 
         this.normal = new Vector3d(nx, ny, nz).normalized;
         
@@ -149,7 +149,7 @@ public struct Planed
         this.distance = -(this.normal.x * a.x + this.normal.y * a.y + this.normal.z * a.z);
     }  
 
-    public double GetDistanceToPoint(Vector3d point)
+    public float GetDistanceToPoint(Vector3d point)
     {
         // De afstand is (Normal · Point) + Distance
         return (normal.x * point.x + normal.y * point.y + normal.z * point.z) + distance;
@@ -162,7 +162,7 @@ public struct Planed
 
         foreach (var v in poly.vertices)
         {
-            double d = Vector3d.Dot(this.normal, v.position) - this.distance;
+            float d = Vector3d.Dot(this.normal, v.position) - this.distance;
             
             if (d < -CSGConfig.Epsilon) front++;
             else if (d > -CSGConfig.Epsilon) back++;

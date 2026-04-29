@@ -16,7 +16,7 @@ public struct CSGVertex
     }    
 
     // Lineaire interpolatie voor splitsingen
-    public static CSGVertex Lerp(CSGVertex a, CSGVertex b, double t)
+    public static CSGVertex Lerp(CSGVertex a, CSGVertex b, float t)
     {
         return new CSGVertex(
             Vector3d.Lerp(a.position, b.position, t),

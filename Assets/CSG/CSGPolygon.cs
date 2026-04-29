@@ -40,7 +40,7 @@ public class CSGPolygon
         List<VertexSide> sides = new List<VertexSide>();
         for (int i = 0; i < vertices.Count; i++)
         {
-            double dist = splitPlane.GetDistanceToPoint(vertices[i].position);
+            float dist = splitPlane.GetDistanceToPoint(vertices[i].position);
             if (dist > CSGConfig.Epsilon) sides.Add(VertexSide.Front);
             else if (dist < -CSGConfig.Epsilon) sides.Add(VertexSide.Back);
             else sides.Add(VertexSide.On);
@@ -58,7 +58,7 @@ public class CSGPolygon
         // Geval A: Polygoon ligt volledig op het vlak (Coplanar)
         if (!hasFront && !hasBack)
         {
-            double dot = Vector3d.Dot(this.plane.normal, splitPlane.normal);
+            float dot = Vector3d.Dot(this.plane.normal, splitPlane.normal);
             if (dot > 0) fCoplanar.Add(this);
             else bCoplanar.Add(this);
             return;
@@ -97,11 +97,11 @@ public class CSGPolygon
             // Check of we de edge (i -> j) moeten snijden
             if ((si == VertexSide.Front && sj == VertexSide.Back) || (si == VertexSide.Back && sj == VertexSide.Front))
             {
-                double distI = splitPlane.GetDistanceToPoint(vi.position);
-                double distJ = splitPlane.GetDistanceToPoint(vj.position);
+                float distI = splitPlane.GetDistanceToPoint(vi.position);
+                float distJ = splitPlane.GetDistanceToPoint(vj.position);
                 
                 // Bereken t (0.0 tot 1.0) op de edge
-                double t = Math.Abs(distI) / (Math.Abs(distI) + Math.Abs(distJ));
+                float t = Mathf.Abs(distI) / (Mathf.Abs(distI) + Mathf.Abs(distJ));
                 
                 // Interpoleer positie, normal en UV
                 CSGVertex intersect = CSGVertex.Lerp(vi, vj, t);
