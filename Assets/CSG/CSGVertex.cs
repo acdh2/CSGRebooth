@@ -10,7 +10,7 @@ public struct CSGVertex
 
     public CSGVertex(Vector3d pos, Vector3d norm, Vector3d uvCoords)
     {
-        position = pos;//CSGConfig.Snap(pos);
+        position = pos;
         normal = norm;
         uv = uvCoords;
     }    
