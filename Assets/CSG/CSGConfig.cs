@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public static class CSGConfig
 {
     public const float Epsilon = 0.00001f; // Voor vlak-controles
+    //public const float Epsilon = 0.00001f; // Voor vlak-controles
     //public const float SnapGrid = 0.001f;  // Voor vertex-snapping
 
     // public static Vector3d SnapZ(Vector3d pos)
@@ -40,7 +41,7 @@ public struct Vector3d
         get
         {
             float mag = Magnitude;
-            return mag > 0 ? new Vector3d(x / mag, y / mag, z / mag) : new Vector3d(0, 0, 0);
+            return mag > float.Epsilon ? new Vector3d(x / mag, y / mag, z / mag) : new Vector3d(0, 0, 0);
         }
     }
 
@@ -91,6 +92,16 @@ public struct Vector3d
         );
     }
 
+    public static Vector3d Min(Vector3d a, Vector3d b)
+    {
+        return new Vector3d(Math.Min(a.x, b.x), Math.Min(a.y, b.y), Math.Min(a.z, b.z));
+    }
+
+    public static Vector3d Max(Vector3d a, Vector3d b)
+    {
+        return new Vector3d(Math.Max(a.x, b.x), Math.Max(a.y, b.y), Math.Max(a.z, b.z));
+    }    
+
     public Vector3 toVector3()
     {
         return new Vector3((float)x, (float)y, (float)z);
@@ -129,7 +140,8 @@ public struct Planed
     {
         this.normal = inNormal.normalized;
         // De afstand d = dot(normal, point)
-        this.distance = -(normal.x * inPoint.x + normal.y * inPoint.y + normal.z * inPoint.z);
+        this.distance = -Vector3d.Dot(this.normal, inPoint);
+        //this.distance = -(normal.x * inPoint.x + normal.y * inPoint.y + normal.z * inPoint.z);
     }
 
     public Planed(Vector3d a, Vector3d b, Vector3d c)
@@ -146,14 +158,34 @@ public struct Planed
         this.normal = new Vector3d(nx, ny, nz).normalized;
         
         // De afstand d = -(normal . a)
-        this.distance = -(this.normal.x * a.x + this.normal.y * a.y + this.normal.z * a.z);
+        this.distance = -Vector3d.Dot(this.normal, a);
+        //this.distance = -(this.normal.x * a.x + this.normal.y * a.y + this.normal.z * a.z);
     }  
 
     public float GetDistanceToPoint(Vector3d point)
     {
         // De afstand is (Normal · Point) + Distance
-        return (normal.x * point.x + normal.y * point.y + normal.z * point.z) + distance;
+        return Vector3d.Dot(normal, point) + distance;
+        //return (normal.x * point.x + normal.y * point.y + normal.z * point.z) + distance;
     }  
+
+    public CSGSide Compare(Bounds bounds)
+    {
+        Vector3 center = bounds.center;
+        Vector3 extents = bounds.extents;
+
+        // Projecteer de extents op de normaal van het vlak
+        double radius = Math.Abs(normal.x * extents.x) + 
+                        Math.Abs(normal.y * extents.y) + 
+                        Math.Abs(normal.z * extents.z);
+
+        double distance = GetDistanceToPoint(Vector3d.fromVector3(center));
+
+        if (distance > radius + CSGConfig.Epsilon) return CSGSide.Front;
+        if (distance < -radius - CSGConfig.Epsilon) return CSGSide.Back;
+
+        return CSGSide.Spanning;
+    }    
 
     public CSGSide Compare(CSGPolygon poly)
     {
@@ -162,15 +194,32 @@ public struct Planed
 
         foreach (var v in poly.vertices)
         {
-            float d = Vector3d.Dot(this.normal, v.position) - this.distance;
+            float d = GetDistanceToPoint(v.position);
             
-            if (d < -CSGConfig.Epsilon) front++;
-            else if (d > -CSGConfig.Epsilon) back++;
+            if (d > CSGConfig.Epsilon) front++;
+            else if (d < -CSGConfig.Epsilon) back++;
         }
 
         if (front > 0 && back > 0) return CSGSide.Spanning;
         if (front > 0) return CSGSide.Front;
         if (back > 0) return CSGSide.Back;
         return CSGSide.On;
-    }
+    }        
+
+    //     int front = 0;
+    //     int back = 0;
+
+    //     foreach (var v in poly.vertices)
+    //     {
+    //         float d = Vector3d.Dot(this.normal, v.position) - this.distance;
+            
+    //         if (d < -CSGConfig.Epsilon) front++;
+    //         else if (d > -CSGConfig.Epsilon) back++;
+    //     }
+
+    //     if (front > 0 && back > 0) return CSGSide.Spanning;
+    //     if (front > 0) return CSGSide.Front;
+    //     if (back > 0) return CSGSide.Back;
+    //     return CSGSide.On;
+    // }
 }    
