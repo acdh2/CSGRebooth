@@ -1,20 +1,23 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/**
+ * Base class for CSG models, providing utilities to convert between Unity Meshes and CSG Polygons.
+ */
 public abstract class CSGModel : MonoBehaviour
 {
-    // Maakt CSGPolygonen van een Unity Mesh
+    /** Generates simple planar UV mapping (XZ projection) for vertices that lack UVs. */
     protected Vector2[] GeneratePlanarUVs(Vector3[] vertices)
     {
         Vector2[] uvs = new Vector2[vertices.Length];
         for (int i = 0; i < vertices.Length; i++)
         {
-            // Simpele XY-projectie (Planar Mapping)
             uvs[i] = new Vector2(vertices[i].x, vertices[i].z);
         }
         return uvs;
     }
 
+    /** Converts a Unity Mesh into a list of CSG polygons, applying the provided transformation. */
     protected List<CSGPolygon> MeshToPolygons(Mesh mesh, Transform tx)
     {
         Vector3[] v = mesh.vertices;
@@ -48,6 +51,7 @@ public abstract class CSGModel : MonoBehaviour
         return polygons;
     }    
 
+    /** Converts a list of CSG polygons back into a Unity Mesh. */
     protected Mesh PolygonsToMesh(List<CSGPolygon> polygons)
     {
         Mesh mesh = new Mesh();
@@ -69,7 +73,7 @@ public abstract class CSGModel : MonoBehaviour
                 outUvs.Add(v.uv.toVector3());
             }
 
-            // Triangle fan triangulatie
+            // Triangle fan triangulation
             for (int i = 2; i < poly.vertices.Count; i++)
             {
                 outTris.Add(baseIndex);

@@ -2,10 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+/**
+ * Represents a node in the Binary Space Partitioning (BSP) tree used for CSG operations.
+ */
 public class CSGNode
 {
     public List<CSGPolygon> polygons = new List<CSGPolygon>();
-    public Planed partition;
+    public Planef partition;
     public CSGNode front;
     public CSGNode back;
     public Bounds nodeBounds; 
@@ -18,11 +21,12 @@ public class CSGNode
         if (list != null && list.Count > 0) Build(list);
     }
 
+    /** Builds the BSP tree from a list of polygons. */
     public void Build(List<CSGPolygon> list)
     {
         if (list == null || list.Count == 0) return;
 
-        // Bepaal splitter
+        // Choose a splitter to maintain a balanced tree
         CSGPolygon splitter = (list.Count > 20) 
             ? list[UnityEngine.Random.Range(0, list.Count)] 
             : FindBestSplitter(list);
@@ -52,7 +56,7 @@ public class CSGNode
         UpdateBounds();
     }
 
-    // De snelle manier om nieuwe polygonen in de bestaande boom te weven
+    /** Injects new polygons into the existing BSP tree structure. */
     public void InjectPolygons(List<CSGPolygon> newPolys)
     {
         if (newPolys == null || newPolys.Count == 0) return;
@@ -78,13 +82,12 @@ public class CSGNode
         UpdateBounds();
     }
 
+    /** Recursively clips a list of polygons against this BSP tree. */
     public void ClipPolygons(List<CSGPolygon> input, List<CSGPolygon> output)
     {
         if (input.Count == 0) return;
 
-        // Early exit: als de input de bounds van deze node totaal niet raakt
-        // hoeven we niet te splitten, alles is dan 'buiten' (front) t.o.v. deze subtree.
-        // Dit bespaart duizenden berekeningen bij de ster.
+        // Early exit: if input does not intersect this node's bounds, it's all outside.
         Bounds inputBounds = CalculateListBounds(input);
         if (!this.nodeBounds.Intersects(inputBounds))
         {
@@ -110,9 +113,9 @@ public class CSGNode
         if (this.back != null) this.back.ClipPolygons(b, output);
     }
 
+    /** Clips this node's polygons against another BSP tree. */
     public void ClipTo(CSGNode other)
     {
-        // Gebruik bounds om hele takken over te slaan
         if (!this.nodeBounds.Intersects(other.nodeBounds)) return;
 
         List<CSGPolygon> clipped = new List<CSGPolygon>();
@@ -124,32 +127,7 @@ public class CSGNode
         UpdateBounds();
     }
 
-    public void Subtract(CSGNode other)
-    {
-        this.Invert();
-        this.ClipTo(other);
-        other.ClipTo(this);
-        other.Invert();
-        other.ClipTo(this);
-        other.Invert();
-        
-        // Gebruik Inject ipv Build voor snelheid
-        this.InjectPolygons(other.AllPolygons());
-        this.Invert();
-        UpdateBounds();
-    }
-
-    public void Union(CSGNode other)
-    {
-        this.ClipTo(other);
-        other.ClipTo(this);
-        other.Invert();
-        other.ClipTo(this);
-        other.Invert();
-        this.InjectPolygons(other.AllPolygons());
-        UpdateBounds();
-    }
-
+    /** Inverts the BSP tree by flipping all polygons and swapping front/back children. */
     public void Invert()
     {
         foreach (var poly in polygons) poly.Flip();
@@ -160,6 +138,7 @@ public class CSGNode
         var temp = front; front = back; back = temp;
     }
 
+    /** Updates the axis-aligned bounding box of this node and its children. */
     public void UpdateBounds()
     {
         this.nodeBounds = CalculateListBounds(this.polygons);
@@ -175,6 +154,7 @@ public class CSGNode
         return b;
     }
 
+    /** Heuristic to find a polygon that minimizes splits and balances the tree. */
     private CSGPolygon FindBestSplitter(List<CSGPolygon> list)
     {
         CSGPolygon best = list[0];
@@ -199,6 +179,7 @@ public class CSGNode
         return best;
     }
 
+    /** Returns all polygons contained within this BSP tree. */
     public List<CSGPolygon> AllPolygons()
     {
         List<CSGPolygon> list = new List<CSGPolygon>();

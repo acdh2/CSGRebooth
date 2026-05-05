@@ -1,68 +1,84 @@
 using UnityEditor;
 using UnityEngine;
+using System.Diagnostics;
 
-// DIT script staat in Assets/Editor
+/**
+ * Provides editor menu items to trigger Constructive Solid Geometry (CSG) operations 
+ * directly from the Unity menu or via keyboard shortcuts.
+ */
 public static class CSGMenuItems
 {
-    [MenuItem("CSG Tools/Perform Multiple Subtract %#t")] // Cmd + Shift + R
+    /** 
+     * Shortcut: Cmd/Ctrl + Shift + T 
+     * Finds the 'CSGDemo' object and executes a multiple subtraction operation with timing.
+     */
+    [MenuItem("CSG Tools/Perform Multiple Subtract %#t")]
     public static void PerformMultipleSubtract()
     {
-        // 1. Pak het geselecteerde object
-        GameObject selected = GameObject.Find("CSGDemo");//Selection.activeGameObject;
-        selected.transform.position = Vector3.zero;
-
+        GameObject selected = GameObject.Find("CSGDemo");
         if (selected == null) {
-            Debug.LogWarning("Selecteer eerst een object met de CSGTest component!");
+            UnityEngine.Debug.LogWarning("Object 'CSGDemo' not found in the scene!");
             return;
         }
-
-        // 2. Zoek de component
+        
+        selected.transform.position = Vector3.zero;
         CSGTest csg = selected.GetComponent<CSGTest>();
 
         if (csg != null) {
-            // 3. Voer de operatie uit
+            // Start timing
+            Stopwatch sw = Stopwatch.StartNew();
+            long startTime = sw.ElapsedMilliseconds;
+
             csg.DoMultipleSubtract();
             
-            // 4. Markeer als "Dirty" zodat Unity de wijziging onthoudt
+            sw.Stop();
+            long endTime = sw.ElapsedMilliseconds;
+            long deltaTime = endTime - startTime;
+
             EditorUtility.SetDirty(csg);
-            Debug.Log("CSG Subtract succesvol uitgevoerd via sneltoets.");
+            UnityEngine.Debug.Log($"CSG Subtract completed. Delta Time: {deltaTime}ms. Total Elapsed: {sw.ElapsedMilliseconds}ms.");
 
             selected.transform.position = new Vector3(0, 0, -5);
         } else {
-            Debug.LogError("Geselecteerd object heeft geen CSGTest component.");
+            UnityEngine.Debug.LogError("The selected object does not have a CSGTest component.");
         }
     }
 
-    [MenuItem("CSG Tools/Perform Multiple Union %#u")] // Cmd + Shift + U op Mac
+    /** 
+     * Shortcut: Cmd/Ctrl + Shift + U 
+     * Finds the 'CSGDemo' object and executes a multiple union operation with timing.
+     */
+    [MenuItem("CSG Tools/Perform Multiple Union %#u")]
     public static void PerformMultipleUnion()
     {
-        GameObject selected = GameObject.Find("CSGDemo");//Selection.activeGameObject;
-        selected.transform.position = Vector3.zero;
-
+        GameObject selected = GameObject.Find("CSGDemo");
         if (selected == null) {
-            selected = GameObject.Find("CSGDemo");
-        }
-
-        if (selected == null) {
-            Debug.LogWarning("Selecteer een object of zorg dat 'CSGDemo' in de scene staat!");
+            UnityEngine.Debug.LogWarning("Object 'CSGDemo' not found in the scene!");
             return;
         }
 
+        selected.transform.position = Vector3.zero;
         CSGTest csg = selected.GetComponent<CSGTest>();
 
         if (csg != null) {
-            // Undo record zodat je de Union ongedaan kunt maken
             Undo.RecordObject(selected.GetComponent<MeshFilter>(), "CSG Multiple Union");
 
-            // Voer de Union uit
+            // Start timing
+            Stopwatch sw = Stopwatch.StartNew();
+            long startTime = sw.ElapsedMilliseconds;
+
             csg.DoMultipleUnion();
             
+            sw.Stop();
+            long endTime = sw.ElapsedMilliseconds;
+            long deltaTime = endTime - startTime;
+            
             EditorUtility.SetDirty(csg);
-            Debug.Log("CSG Multiple Union succesvol uitgevoerd.");
+            UnityEngine.Debug.Log($"CSG Multiple Union completed. Delta Time: {deltaTime}ms. Total Elapsed: {sw.ElapsedMilliseconds}ms.");
 
             selected.transform.position = new Vector3(0, 0, -5);
         } else {
-            Debug.LogError("Het object heeft geen CSGTest component.");
+            UnityEngine.Debug.LogError("The selected object does not have a CSGTest component.");
         }
     }    
 }
