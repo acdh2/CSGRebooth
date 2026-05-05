@@ -15,6 +15,8 @@ public class CSGPolygon
     public List<CSGVertex> vertices;
     public Planef plane;
 
+    // Static buffers for GC efficiency. Safe for single-threaded sequential use only.
+    // Not safe for multi-threading or async operations.
     // Static buffers to minimize GC allocations during splitting
     private static readonly List<VertexSide> _sideBuffer = new List<VertexSide>(32);
     private static readonly List<float> _distBuffer = new List<float>(32);

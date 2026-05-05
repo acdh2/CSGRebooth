@@ -176,11 +176,11 @@ public struct Planef
         Vector3 center = bounds.center;
         Vector3 extents = bounds.extents;
 
-        double radius = Math.Abs(normal.x * extents.x) + 
+        float radius = Math.Abs(normal.x * extents.x) + 
                         Math.Abs(normal.y * extents.y) + 
                         Math.Abs(normal.z * extents.z);
 
-        double distance = GetDistanceToPoint(Vector3f.fromVector3(center));
+        float distance = GetDistanceToPoint(Vector3f.fromVector3(center));
 
         if (distance > radius + CSGConfig.Epsilon) return CSGSide.Front;
         if (distance < -radius - CSGConfig.Epsilon) return CSGSide.Back;

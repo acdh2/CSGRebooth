@@ -7,17 +7,26 @@ using System;
  */
 public class CSGNode
 {
+    private CSGNode parent;
+
     public List<CSGPolygon> polygons = new List<CSGPolygon>();
     public Planef partition;
     public CSGNode front;
     public CSGNode back;
     public Bounds nodeBounds; 
 
+    // Static buffers for GC efficiency. Safe for single-threaded sequential use only.
     private static readonly List<CSGPolygon> _fCopBuffer = new List<CSGPolygon>(64);
     private static readonly List<CSGPolygon> _bCopBuffer = new List<CSGPolygon>(64);
 
-    public CSGNode(List<CSGPolygon> list = null)
+    // Voor root nodes (zonder parent)
+    public CSGNode(List<CSGPolygon> list = null) : this(null, list) { }
+
+    // Nieuwe constructor met parent
+
+    private CSGNode(CSGNode parent, List<CSGPolygon> list = null)
     {
+        this.parent = parent;
         if (list != null && list.Count > 0) Build(list);
     }
 
@@ -43,13 +52,13 @@ public class CSGNode
 
         if (fList.Count > 0)
         {
-            if (this.front == null) this.front = new CSGNode();
+            if (this.front == null) this.front = new CSGNode(this);
             this.front.Build(fList);
         }
 
         if (bList.Count > 0)
         {
-            if (this.back == null) this.back = new CSGNode();
+            if (this.back == null) this.back = new CSGNode(this);
             this.back.Build(bList);
         }
         
@@ -72,12 +81,12 @@ public class CSGNode
         if (f.Count > 0)
         {
             if (front != null) front.InjectPolygons(f);
-            else front = new CSGNode(f);
+            else front = new CSGNode(this, f);
         }
         if (b.Count > 0)
         {
             if (back != null) back.InjectPolygons(b);
-            else back = new CSGNode(b);
+            else back = new CSGNode(this, b);
         }
         UpdateBounds();
     }
@@ -144,7 +153,9 @@ public class CSGNode
         this.nodeBounds = CalculateListBounds(this.polygons);
         if (front != null) this.nodeBounds.Encapsulate(front.nodeBounds);
         if (back != null) this.nodeBounds.Encapsulate(back.nodeBounds);
-    }
+
+        parent?.UpdateBounds();
+    }        
 
     private Bounds CalculateListBounds(List<CSGPolygon> list)
     {
