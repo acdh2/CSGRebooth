@@ -23,7 +23,7 @@ public struct CSGVertex
     {
         return new CSGVertex(
             Vector3f.Lerp(a.position, b.position, t),
-            Vector3f.Lerp(a.normal, b.normal, t).normalized,
+            Vector3f.Lerp(a.normal, b.normal, t),
             Vector3f.Lerp(a.uv, b.uv, t)
         );
     }

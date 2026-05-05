@@ -9,21 +9,25 @@ public class CSGNode
 {
     private CSGNode parent;
 
+    /** Polygons stored within this specific node. */
     public List<CSGPolygon> polygons = new List<CSGPolygon>();
+    /** The plane used to partition space at this node. */
     public Planef partition;
+    /** The child node representing the space in front of the partition plane. */
     public CSGNode front;
+    /** The child node representing the space behind the partition plane. */
     public CSGNode back;
+    /** Axis-aligned bounding box encompassing this node and all its descendants. */
     public Bounds nodeBounds; 
 
     // Static buffers for GC efficiency. Safe for single-threaded sequential use only.
     private static readonly List<CSGPolygon> _fCopBuffer = new List<CSGPolygon>(64);
     private static readonly List<CSGPolygon> _bCopBuffer = new List<CSGPolygon>(64);
 
-    // Voor root nodes (zonder parent)
+    /** Constructor for root nodes (without a parent). */
     public CSGNode(List<CSGPolygon> list = null) : this(null, list) { }
 
-    // Nieuwe constructor met parent
-
+    /** Internal constructor to create child nodes with a reference to their parent. */
     private CSGNode(CSGNode parent, List<CSGPolygon> list = null)
     {
         this.parent = parent;
@@ -63,6 +67,50 @@ public class CSGNode
         }
         
         UpdateBounds();
+    }
+
+    /** Performs a subtraction operation (A - B). */
+    public void Subtract(CSGNode other)
+    {
+        // A - B = A cut by B, and B cut by A (inverted)
+        this.Invert();
+        this.ClipTo(other);
+        other.ClipTo(this);
+        other.Invert();
+        other.ClipTo(this);
+        other.Invert();
+        
+        // Add remaining brush polygons to the base
+        this.Build(other.AllPolygons());
+        this.Invert();
+    }
+
+    /** Performs an intersection operation (A ∩ B). */
+    public void Intersect(CSGNode other)
+    {
+        this.Invert();
+        other.ClipTo(this);
+        other.Invert();
+        this.ClipTo(other);
+        other.ClipTo(this);
+        
+        this.Build(other.AllPolygons());
+        this.Invert();
+    }    
+
+    /** Performs a union operation (A + B). */
+    public void Union(CSGNode other)
+    {
+        // A + B = A clipped by B, and B clipped by A (inverted)
+        this.ClipTo(other);
+        other.ClipTo(this);
+        
+        other.Invert();
+        other.ClipTo(this);
+        other.Invert();
+        
+        // Add remaining brush polygons to the base
+        this.Build(other.AllPolygons());
     }
 
     /** Injects new polygons into the existing BSP tree structure. */
@@ -157,6 +205,7 @@ public class CSGNode
         parent?.UpdateBounds();
     }        
 
+    /** Calculates the bounding box for a given list of polygons. */
     private Bounds CalculateListBounds(List<CSGPolygon> list)
     {
         if (list.Count == 0) return new Bounds();
@@ -198,6 +247,7 @@ public class CSGNode
         return list;
     }
 
+    /** Recursively collects all polygons from this node and its children. */
     private void FillPolygonList(List<CSGPolygon> list)
     {
         list.AddRange(polygons);
