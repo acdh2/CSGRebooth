@@ -4,7 +4,7 @@ using System.Collections.Generic;
 /**
  * Test class to demonstrate and verify multiple CSG operations (Subtract and Union).
  */
-public class CSGTest : CSGModel
+public class CSGTest : MonoBehaviour
 {
     /** The base mesh filter used as the starting geometry. */
     public MeshFilter meshFilterA;

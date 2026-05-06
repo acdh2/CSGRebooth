@@ -4,14 +4,14 @@ using System.Collections.Generic;
 /**
  * Base class for CSG models, providing utilities to convert between Unity Meshes and CSG Polygons.
  */
-public abstract class CSGModel : MonoBehaviour
+public static class CSGUtils
 {
     /**
      * Generates simple planar UV mapping (XZ projection) for vertices.
      * @param vertices Array of vertex positions in local space.
      * @return Array of UV coordinates projected from X and Z components.
      */
-    protected static Vector2[] GeneratePlanarUVs(Vector3[] vertices)
+    public static Vector2[] GeneratePlanarUVs(Vector3[] vertices)
     {
         Vector2[] uvs = new Vector2[vertices.Length];
         for (int i = 0; i < vertices.Length; i++)

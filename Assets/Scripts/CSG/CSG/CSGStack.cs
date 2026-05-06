@@ -44,7 +44,7 @@ public class CSGStack
         if (isDirty) Recalculate();
         
         // Pass the world-to-local matrix to ensure the mesh is centered relative to the target's origin
-        return CSGModel.PolygonsToMesh(resultPolygons, targetTransform.worldToLocalMatrix, weldVertices);
+        return CSGUtils.PolygonsToMesh(resultPolygons, targetTransform.worldToLocalMatrix, weldVertices);
     }
 
     /**
@@ -96,6 +96,6 @@ public class CSGStack
      */
     private List<CSGPolygon> PrepareBrush(CSGOperation op)
     {
-        return CSGModel.MeshToPolygons(op.mesh, op.localToWorld);
+        return CSGUtils.MeshToPolygons(op.mesh, op.localToWorld);
     }
 }
