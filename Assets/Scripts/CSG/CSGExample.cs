@@ -18,7 +18,20 @@ public class CSGExample : MonoBehaviour
     {        
         if (actions == null || actions.Count == 0) return;
 
-        transform.position = Vector3.zero;
+        Vector3 position = transform.position;
+
+        if (actions[0].type != CSGType.Union)
+        {
+            UnityEngine.Debug.LogWarning("First action in a stack must be a Union");
+        }
+        
+        MeshFilter firstFilter = actions[0].filter;
+        if (firstFilter != null)
+        {
+            transform.position = firstFilter.transform.position;
+        } else {
+            transform.position = Vector3.zero;
+        }
 
         Stopwatch sw = Stopwatch.StartNew();
 
@@ -44,7 +57,6 @@ public class CSGExample : MonoBehaviour
         sw.Stop();
         UnityEngine.Debug.Log($"CSG Stack executed in {sw.ElapsedMilliseconds} ms ({sw.Elapsed.TotalSeconds:F4} seconds)");
 
-        transform.position = new Vector3(0, 0, -5);
-
+        transform.position = position;
     }
 }

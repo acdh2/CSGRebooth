@@ -23,7 +23,7 @@ public static class CSGMenuItems
         foreach (CSGExample target in targets)
         {
             target.ExecuteStack();
-            // Markeer het object als "dirty" zodat Unity weet dat de mesh is veranderd
+            // Mark the object as "dirty" to notify Unity the mesh has changed
             EditorUtility.SetDirty(target);
         }
     }
