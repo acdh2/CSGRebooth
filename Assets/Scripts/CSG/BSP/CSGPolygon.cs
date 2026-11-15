@@ -54,9 +54,11 @@ public class CSGPolygon
             max.y = Math.Max(max.y, v.position.y);
             max.z = Math.Max(max.z, v.position.z);
         }
-        _cachedBounds = new Bounds();
-        _cachedBounds.Value.SetMinMax(min, max);
-        return _cachedBounds.Value;
+        // Note: _cachedBounds.Value returns a copy, so calling SetMinMax on it would change nothing.
+        Bounds b = new Bounds();
+        b.SetMinMax(min, max);
+        _cachedBounds = b;
+        return b;
     }    
 
     /** Reverses the winding order and normal of the polygon. */

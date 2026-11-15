@@ -63,11 +63,9 @@ public class CSGStack
             var op = operations[i];
             CSGNode resultNode = new CSGNode(resultPolygons);
             
-            // Retrieve the brush node from cache or build it if necessary
-            if (op.brushNode == null)
-            {
-                op.brushNode = new CSGNode(PrepareBrush(op));
-            }
+            // Build the brush tree fresh every time: Union/Subtract/Intersect clip and flip
+            // the brush tree and reuse its polygons, so a cached tree is damaged after one use.
+            op.brushNode = new CSGNode(PrepareBrush(op));
 
             // Execute the specific CSG action
             switch (op.type)

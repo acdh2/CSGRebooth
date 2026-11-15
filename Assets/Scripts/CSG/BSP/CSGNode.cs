@@ -7,8 +7,6 @@ using System;
  */
 public class CSGNode
 {
-    private CSGNode parent;
-
     /** Polygons stored within this specific node. */
     public List<CSGPolygon> polygons = new List<CSGPolygon>();
     /** The plane used to partition space at this node. */
@@ -17,20 +15,39 @@ public class CSGNode
     public CSGNode front;
     /** The child node representing the space behind the partition plane. */
     public CSGNode back;
-    /** Axis-aligned bounding box encompassing this node and all its descendants. */
-    public Bounds nodeBounds; 
+
+    /**
+     * Bounding box of the closed solid this tree was built from (root nodes only).
+     * It is computed once in the constructor and NOT updated by ClipTo: the solid a BSP tree
+     * represents is defined by its planes, which clipping does not change, so the box of the
+     * polygons that remain after clipping would be too small.
+     */
+    private Bounds solidBounds;
+    private bool hasSolidBounds;
+    /** True while the tree represents the complement of the solid (after an odd number of Invert calls). */
+    private bool inverted;
 
     // Static buffers for GC efficiency. Safe for single-threaded sequential use only.
     private static readonly List<CSGPolygon> _fCopBuffer = new List<CSGPolygon>(64);
     private static readonly List<CSGPolygon> _bCopBuffer = new List<CSGPolygon>(64);
 
-    /** Constructor for root nodes (without a parent). */
-    public CSGNode(List<CSGPolygon> list = null) : this(null, list) { }
-
-    /** Internal constructor to create child nodes with a reference to their parent. */
-    private CSGNode(CSGNode parent, List<CSGPolygon> list = null)
+    /** Constructor for root nodes. The polygons must form a closed solid. */
+    public CSGNode(List<CSGPolygon> list = null)
     {
-        this.parent = parent;
+        if (list != null && list.Count > 0)
+        {
+            solidBounds = CalculateListBounds(list);
+            // A margin of 4 x Epsilon on every side: the BSP treats anything within Epsilon of a plane as "on" it, so a face
+            // touching the solid up to rounding noise must go through the tree, not be kept by this quick test (it left holes).
+            solidBounds.Expand(8f * CSGConfig.Epsilon);
+            hasSolidBounds = true;
+            Build(list);
+        }
+    }
+
+    /** Internal constructor for child nodes. */
+    private CSGNode(List<CSGPolygon> list, bool isChild)
+    {
         if (list != null && list.Count > 0) Build(list);
     }
 
@@ -39,13 +56,14 @@ public class CSGNode
     {
         if (list == null || list.Count == 0) return;
 
-        // Choose a splitter to maintain a balanced tree
-        CSGPolygon splitter = (list.Count > 20) 
-            ? list[UnityEngine.Random.Range(0, list.Count)] 
-            : FindBestSplitter(list);
+        // Choose a splitter only for a fresh node; a node that already has a plane keeps it,
+        // otherwise polygons stored here earlier would no longer lie on this node's plane.
+        // FindBestSplitter is deterministic, so every client builds the same tree.
+        if (this.polygons.Count == 0 && this.front == null && this.back == null)
+        {
+            this.partition = FindBestSplitter(list).plane;
+        }
 
-        this.partition = splitter.plane;
-        
         List<CSGPolygon> fList = new List<CSGPolygon>();
         List<CSGPolygon> bList = new List<CSGPolygon>();
 
@@ -56,17 +74,15 @@ public class CSGNode
 
         if (fList.Count > 0)
         {
-            if (this.front == null) this.front = new CSGNode(this);
+            if (this.front == null) this.front = new CSGNode(null, true);
             this.front.Build(fList);
         }
 
         if (bList.Count > 0)
         {
-            if (this.back == null) this.back = new CSGNode(this);
+            if (this.back == null) this.back = new CSGNode(null, true);
             this.back.Build(bList);
         }
-        
-        UpdateBounds();
     }
 
     /** Performs a subtraction operation (A - B). */
@@ -129,28 +145,37 @@ public class CSGNode
         if (f.Count > 0)
         {
             if (front != null) front.InjectPolygons(f);
-            else front = new CSGNode(this, f);
+            else front = new CSGNode(f, true);
         }
         if (b.Count > 0)
         {
             if (back != null) back.InjectPolygons(b);
-            else back = new CSGNode(this, b);
+            else back = new CSGNode(b, true);
         }
-        UpdateBounds();
     }
 
-    /** Recursively clips a list of polygons against this BSP tree. */
+    /**
+     * Clips a list of polygons against the solid this tree represents: keeps the parts outside it.
+     * Call on a root node. A list entirely outside the solid's bounding box is decided at once:
+     * outside a normal solid means keep everything, outside an inverted solid (its complement)
+     * means everything lies inside it, so nothing is kept.
+     */
     public void ClipPolygons(List<CSGPolygon> input, List<CSGPolygon> output)
     {
         if (input.Count == 0) return;
 
-        // Early exit: if input does not intersect this node's bounds, it's all outside.
-        Bounds inputBounds = CalculateListBounds(input);
-        if (!this.nodeBounds.Intersects(inputBounds))
+        if (hasSolidBounds && !solidBounds.Intersects(CalculateListBounds(input)))
         {
-            output.AddRange(input);
+            if (!inverted) output.AddRange(input);
             return;
         }
+
+        ClipPolygonsRecursive(input, output);
+    }
+
+    private void ClipPolygonsRecursive(List<CSGPolygon> input, List<CSGPolygon> output)
+    {
+        if (input.Count == 0) return;
 
         List<CSGPolygon> f = new List<CSGPolygon>();
         List<CSGPolygon> b = new List<CSGPolygon>();
@@ -164,24 +189,24 @@ public class CSGNode
             b.AddRange(_bCopBuffer);
         }
 
-        if (this.front != null) this.front.ClipPolygons(f, output);
+        if (this.front != null) this.front.ClipPolygonsRecursive(f, output);
         else output.AddRange(f);
 
-        if (this.back != null) this.back.ClipPolygons(b, output);
+        if (this.back != null) this.back.ClipPolygonsRecursive(b, output);
     }
 
-    /** Clips this node's polygons against another BSP tree. */
+    /** Clips this node's polygons (and its children's) against another tree. Pass a root node. */
     public void ClipTo(CSGNode other)
     {
-        if (!this.nodeBounds.Intersects(other.nodeBounds)) return;
-
-        List<CSGPolygon> clipped = new List<CSGPolygon>();
-        other.ClipPolygons(this.polygons, clipped);
-        this.polygons = clipped;
+        if (this.polygons.Count > 0)
+        {
+            List<CSGPolygon> clipped = new List<CSGPolygon>();
+            other.ClipPolygons(this.polygons, clipped);
+            this.polygons = clipped;
+        }
 
         front?.ClipTo(other);
         back?.ClipTo(other);
-        UpdateBounds();
     }
 
     /** Inverts the BSP tree by flipping all polygons and swapping front/back children. */
@@ -193,20 +218,11 @@ public class CSGNode
         front?.Invert();
         back?.Invert();
         var temp = front; front = back; back = temp;
+        inverted = !inverted;
     }
 
-    /** Updates the axis-aligned bounding box of this node and its children. */
-    public void UpdateBounds()
-    {
-        this.nodeBounds = CalculateListBounds(this.polygons);
-        if (front != null) this.nodeBounds.Encapsulate(front.nodeBounds);
-        if (back != null) this.nodeBounds.Encapsulate(back.nodeBounds);
-
-        parent?.UpdateBounds();
-    }        
-
     /** Calculates the bounding box for a given list of polygons. */
-    private Bounds CalculateListBounds(List<CSGPolygon> list)
+    private static Bounds CalculateListBounds(List<CSGPolygon> list)
     {
         if (list.Count == 0) return new Bounds();
         Bounds b = list[0].GetBounds();
